@@ -20,7 +20,7 @@ int main() {
     int edges[m]={1,5,8,3,7,9,5,10,6,0,0,4,8,5,5,2,4,11,5,2,8,5,2};
     int weight[m]={2,4,9,1,8,1,2,5,2,4,3,5,2,4,3,1,2,4,1,6,1};
 
-    bfs(ver, edges, 1); // Call BFS with the first vertex as source
+    //bfs(ver, edges, 1); // Call BFS with the first vertex as source
 
     std::vector<int> sink(n, 0); // Initialize all elements to 0
 
