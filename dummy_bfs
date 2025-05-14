@@ -1,0 +1,88 @@
+#define INF INT_MAX
+#define N 12 
+
+__global__ void BFS(int* Vertex, int* Edge, bool* Frontier, bool* Visited, int* level) {
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if(tid==0)
+    {
+        printf("Frontier\n");
+        for (int i = 0; i < N; ++i)
+        printf("Frontier[%d] = %d\n", i, Frontier[i]);
+        printf("\n");
+
+        printf("Edge\n");
+        for (int i = 0; i < N; ++i)
+        printf("Edge[%d] = %d\n", i, Edge[i]);
+        printf("\n");
+    }
+    if (Frontier[tid]) {
+        printf("Thread %d processing, vertex=%d vertex+1=%d\n", tid,Vertex[tid], Vertex[tid + 1]);
+        Frontier[tid] = false;
+        Visited[tid] = true;
+
+        for (int i = Vertex[tid]; i < Vertex[tid + 1]; i++) {
+            int nid = Edge[i]; printf("i=%d,vertex=%d vertex+1=%d, nid is %d edge[i] is %d\n", i,Vertex[tid], Vertex[tid + 1], nid,Edge[i]);
+
+            if (!Visited[nid]) {
+                level[nid] = level[tid] + 1;
+                Frontier[nid] = true;
+            }
+        }
+    }
+}
+
+void bfs(int* Vertex_host, int* Edge_host, int source) {
+    bool Frontier_host[N] = {false};
+    bool Visited_host[N] = {false};
+    int level_host[N];
+
+    for (int i = 0; i < N; ++i) level_host[i] = INF;
+    Frontier_host[source] = true;
+    level_host[source] = 0;
+
+    int *Vertex_d, *Edge_d, *level_d;
+    bool *Frontier_d, *Visited_d;
+
+    cudaMalloc(&Vertex_d, (N + 1) * sizeof(int));
+    cudaMalloc(&Edge_d, 5 * sizeof(int)); 
+    cudaMalloc(&Frontier_d, N * sizeof(bool));
+    cudaMalloc(&Visited_d, N * sizeof(bool));
+    cudaMalloc(&level_d, N * sizeof(int));
+
+    cudaMemcpy(Vertex_d, Vertex_host, (N + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(Edge_d, Edge_host, 5 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(Frontier_d, Frontier_host, N * sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(Visited_d, Visited_host, N * sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(level_d, level_host, N * sizeof(int), cudaMemcpyHostToDevice);
+
+    bool done;
+    do {
+        BFS<<<1, N>>>(Vertex_d, Edge_d, Frontier_d, Visited_d, level_d);
+        cudaMemcpy(Frontier_host, Frontier_d, N * sizeof(bool), cudaMemcpyDeviceToHost);
+
+        done = false;
+        for (int i = 0; i < N; ++i)
+            if (Frontier_host[i]) {
+                done = true;
+                break;
+            }
+
+       // cudaMemcpy(Frontier_d, Frontier_host, N * sizeof(bool), cudaMemcpyHostToDevice);
+    } while (done);
+
+    cudaMemcpy(level_host, level_d, N * sizeof(int), cudaMemcpyDeviceToHost);
+
+    std::cout << "Shortest distances from source " << source << ":\n";
+    for (int i = 0; i < N; ++i) {
+        if (level_host[i] == INF)
+            std::cout << "Vertex " << i << ": Unreachable\n";
+        else
+            std::cout << "Vertex " << i << ": " << level_host[i] << "\n";
+    }
+
+    cudaFree(Vertex_d);
+    cudaFree(Edge_d);
+    cudaFree(Frontier_d);
+    cudaFree(Visited_d);
+    cudaFree(level_d);
+}
